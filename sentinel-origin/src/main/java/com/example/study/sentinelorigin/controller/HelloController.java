@@ -56,7 +56,26 @@ public class HelloController {
         rule1.setCount(1);
         rule1.setGrade(RuleConstant.FLOW_GRADE_QPS);
         rules.add(rule1);
-        FlowRuleManager.loadRules(rules);
+        List<FlowRule> rulesOrigin = FlowRuleManager.getRules();
+
+
+        FlowRule rule2 = new FlowRule();
+        rule2.setResource("anno-hello");
+        // Set max qps to 20
+        rule2.setCount(1);
+        rule2.setGrade(RuleConstant.FLOW_GRADE_QPS);
+        rules.add(rule2);
+        // 多个规则最好写在一个累的方法中，否则可能失效
+
+        FlowRule rule3 = new FlowRule();
+        rule3.setResource("failBlock-test01");
+        // Set max qps to 20
+        rule3.setCount(1);
+        rule3.setGrade(RuleConstant.FLOW_GRADE_QPS);
+        rules.add(rule3);
+
+        rulesOrigin.addAll(rules);
+        FlowRuleManager.loadRules(rulesOrigin);
     }
 
 
