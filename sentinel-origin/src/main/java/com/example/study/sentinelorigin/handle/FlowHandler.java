@@ -19,4 +19,11 @@ public class FlowHandler {
     public static String threadFlowBlockHandler(BlockException e) {
         return String.format("【降级】当前线程：%s，并发线程数超过阈值 5，拒绝访问", Thread.currentThread().getName());
     }
+
+    public static String limitAppBlockHandler(BlockException e) {
+        String format = String.format("【降级】当前线程：%s，请求过于频繁，触发 limitApp 限流", Thread.currentThread().getName());
+        System.out.println(format);
+        return format;
+
+    }
 }

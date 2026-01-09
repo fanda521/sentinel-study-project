@@ -9,4 +9,7 @@ public class CommonConstant {
 
     // 定义注解绑定的资源名（也可直接在 @SentinelResource 中写死）
     public static final String THREAD_RESOURCE_NAME = "annotationThreadFlowResource";
+
+    // 资源名
+    public static final String LIMIT_APP_RESOURCE = "limitAppResource";
 }

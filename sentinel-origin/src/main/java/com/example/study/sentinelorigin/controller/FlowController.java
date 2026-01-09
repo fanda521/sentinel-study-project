@@ -39,5 +39,20 @@ public class FlowController {
     }
 
 
+    // 步骤 2：注解式测试接口
+    @GetMapping("/limitApp")
+    @SentinelResource(
+            value = CommonConstant.LIMIT_APP_RESOURCE,
+            blockHandlerClass = FlowHandler.class,
+            blockHandler = "limitAppBlockHandler"
+    )
+    public String testLimitApp() throws InterruptedException {
+        Thread.sleep(2000);
+        String format = String.format("【成功】当前线程：%s，请求正常执行", Thread.currentThread().getName());
+        System.out.println(format);
+        return format;
+    }
+
+
 
 }
