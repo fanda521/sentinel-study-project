@@ -26,7 +26,7 @@ public class FlowTest {
     private static final String RATE_LIMITER_URL = "http://localhost:8088/flow/strategy/ratelimiter";
 
     // 并发线程数（用于触发限流）
-    private static final int STRATEGY_CONCURRENT_THREADS = 10;
+    private static final int STRATEGY_CONCURRENT_THREADS = 30;
 
 
     @Test
@@ -153,5 +153,82 @@ public class FlowTest {
         long endTime = System.currentTimeMillis();
         System.out.println("本次请求总耗时：" + (endTime - startTime) + " 毫秒");
     }
+
+
+
+    // 测试接口地址
+    private static final String DIRECT_URL = "http://localhost:8088/flow/module/direct";
+    private static final String ASSOCIATE_CURRENT_URL = "http://localhost:8088/flow/module/associateCurrent";
+    private static final String ASSOCIATE_REF_URL = "http://localhost:8088/flow/module/associateRef";
+    private static final String CHAIN_ENTRY_URL = "http://localhost:8088/flow/module/chainEntry";
+    private static final String CHAIN_CURRENT_URL = "http://localhost:8088/flow/module/chainCurrent";
+    // 并发线程数（用于触发限流）
+    private static final int Module_CONCURRENT_THREADS = 20;
+
+    @Test
+    public void testModule() throws InterruptedException {
+        System.out.println("========== 场景 1：测试 直接流控 效果（当前资源 QPS 阈值 10）==========");
+        testStrategy(DIRECT_URL);
+
+        // 间隔 10 秒，让 Sentinel 重置统计
+        TimeUnit.SECONDS.sleep(10);
+
+        System.out.println("\n========== 场景 2：测试 关联流控 效果（关联资源 QPS 阈值 5，联动限流当前资源）==========");
+        // 第一步：高并发请求关联资源（库存扣减），使其 QPS 超过阈值 5
+        System.out.println("--- 第一步：高并发请求关联资源（库存扣减）---");
+        testStrategy(ASSOCIATE_REF_URL);
+        // 第二步：立即请求当前资源（订单创建），验证是否被联动限流
+        System.out.println("--- 第二步：请求当前资源（订单创建），验证关联限流 ---");
+        testStrategy(ASSOCIATE_CURRENT_URL, 5);
+
+        // 间隔 10 秒
+        TimeUnit.SECONDS.sleep(10);
+
+        System.out.println("\n========== 场景 3：测试 链路流控 效果（入口链路 QPS 阈值 8）==========");
+        // 第一步：高并发请求入口链路（/api/entry），触发链路限流
+        System.out.println("--- 第一步：高并发请求入口链路，触发链路限流 ---");
+        testStrategy(CHAIN_ENTRY_URL);
+        // 第二步：直接请求当前资源，验证是否不受限流影响
+        System.out.println("--- 第二步：直接请求当前资源，验证不受链路限流影响 ---");
+        testStrategy(CHAIN_CURRENT_URL, 12);
+    }
+
+    /**
+     * 模拟高并发请求（默认 20 个线程）
+     * @param url 测试接口地址
+     */
+    private static void testStrategy(String url) {
+        testStrategy(url, Module_CONCURRENT_THREADS);
+    }
+
+    /**
+     * 模拟指定线程数的并发请求
+     * @param url 测试接口地址
+     * @param threadNum 并发线程数
+     */
+    private static void testStrategy(String url, int threadNum) {
+        // 创建固定线程池
+        ExecutorService executorService = Executors.newFixedThreadPool(threadNum);
+
+        // 提交并发请求任务
+        for (int i = 0; i < threadNum; i++) {
+            executorService.submit(() -> {
+                for (int j = 0; j < 20; j++) {
+                    try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
+                        HttpGet httpGet = new HttpGet(url);
+                        String response = EntityUtils.toString(httpClient.execute(httpGet).getEntity(), "UTF-8");
+                        System.out.println(response);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
+        }
+
+        // 关闭线程池，等待所有任务执行完成
+        executorService.shutdown();
+        while (!executorService.isTerminated()) {}
+    }
+
 
 }

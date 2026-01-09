@@ -3,6 +3,8 @@ package com.example.study.sentinelorigin.controller;
 import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.example.study.sentinelorigin.constant.CommonConstant;
 import com.example.study.sentinelorigin.handle.FlowHandler;
+import com.example.study.sentinelorigin.service.ChainFlowCoreService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -18,6 +20,9 @@ import java.util.concurrent.TimeUnit;
 @RestController
 @RequestMapping("/flow")
 public class FlowController {
+
+    @Autowired
+    private ChainFlowCoreService chainFlowCoreService;
 
 
     // 步骤 1：初始化【并发线程数】流控规则（核心配置不变）
@@ -94,5 +99,63 @@ public class FlowController {
         System.out.println(format);
         return format;
 
+    }
+
+    // ************************ 直接流控 测试接口 ************************
+    @GetMapping("/module/direct")
+    @SentinelResource(
+            value = CommonConstant.DIRECT_RESOURCE,
+            blockHandlerClass = FlowHandler.class,
+            blockHandler = "directBlockHandler"
+    )
+    public String testDirectStrategy() {
+        String format = String.format("【直接流控-成功】当前线程：%s，请求正常执行", Thread.currentThread().getName());
+        System.out.println(format);
+        return format;
+    }
+
+    // ************************ 关联流控 测试接口 ************************
+    // 接口 2.1：当前资源（订单创建）
+    @GetMapping("/module/associateCurrent")
+    @SentinelResource(
+            value = CommonConstant.ASSOCIATE_CURRENT_RESOURCE,
+            blockHandlerClass = FlowHandler.class,
+            blockHandler = "associateCurrentBlockHandler"
+    )
+    public String testAssociateCurrent() {
+        String format = String.format("【关联流控-当前资源（订单创建）-成功】当前线程：%s，请求正常执行", Thread.currentThread().getName());
+        System.out.println(format);
+        return format;
+    }
+
+    // 接口 2.2：关联资源（库存扣减）
+    @GetMapping("/module/associateRef")
+    @SentinelResource(
+            value = CommonConstant.ASSOCIATE_REF_RESOURCE
+    )
+    public String testAssociateRef() throws InterruptedException {
+        // 模拟库存扣减耗时，便于触发关联限流
+        Thread.sleep(100);
+        String format = String.format("【关联流控-关联资源（库存扣减）-成功】当前线程：%s，请求正常执行", Thread.currentThread().getName());
+        System.out.println(format);
+        return format;
+    }
+
+    // ************************ 链路流控 测试接口 ************************
+    // 接口 3.1：入口链路资源（/api/entry）
+    @GetMapping("/module/chainEntry")
+    @SentinelResource(
+            value = CommonConstant.CHAIN_ENTRY_RESOURCE
+    )
+    public String testChainEntry() throws InterruptedException {
+        // 入口链路调用当前资源（用户查询）
+        return chainFlowCoreService.doCoreUserQuery();
+    }
+
+    // 接口 3.2：当前资源（用户查询）
+    @GetMapping("/module/chainCurrent")
+    public String testChainCurrent() throws InterruptedException {
+        String format = chainFlowCoreService.doCoreUserQuery();
+        return format;
     }
 }

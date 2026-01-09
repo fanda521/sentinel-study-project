@@ -6,6 +6,8 @@ server:
 
 # Sentinel 配置（和 spring 同级，缩进 2 个空格）
 sentinel:
+  annotation:
+    enabled: true # 强制启用 @SentinelResource 注解解析
   eager: true  # 立即注册，不用等接口调用
   transport:
     dashboard: 127.0.0.1:8080  # Dashboard 地址（确认 Dashboard 是 8080 端口）

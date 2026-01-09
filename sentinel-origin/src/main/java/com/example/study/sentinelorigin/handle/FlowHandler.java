@@ -1,6 +1,7 @@
 package com.example.study.sentinelorigin.handle;
 
 import com.alibaba.csp.sentinel.slots.block.BlockException;
+import com.example.study.sentinelorigin.constant.CommonConstant;
 
 /**
  * @author lucksoul
@@ -48,4 +49,27 @@ public class FlowHandler {
         System.out.println(format);
         return format;
     }
+
+    // ************************ 降级方法 ************************
+    // 直接流控降级方法
+    public static String directBlockHandler(BlockException e) {
+        String format = String.format("【直接流控-降级】当前线程：%s，QPS 超过阈值 10，触发限流", Thread.currentThread().getName());
+        System.out.println(format);
+        return format;
+    }
+
+    // 关联流控-当前资源降级方法
+    public static String associateCurrentBlockHandler(BlockException e) {
+        String format = String.format("【关联流控-降级】当前线程：%s，关联资源（库存扣减）QPS 超过阈值 5，触发当前资源（订单创建）限流", Thread.currentThread().getName());
+        System.out.println(format);
+        return format;
+    }
+
+    // 链路流控-当前资源降级方法
+    public static String chainCurrentBlockHandler(BlockException e) {
+        String format = String.format("【链路流控-降级】当前线程：%s，入口链路（%s）QPS 超过阈值 8，触发限流", Thread.currentThread().getName(), CommonConstant.CHAIN_ENTRY_RESOURCE);
+        System.out.println(format);
+        return format;
+    }
+
 }

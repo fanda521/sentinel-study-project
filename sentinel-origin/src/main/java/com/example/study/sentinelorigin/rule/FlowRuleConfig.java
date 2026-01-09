@@ -6,6 +6,7 @@ import com.alibaba.csp.sentinel.slots.block.flow.FlowRule;
 import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
 import com.example.study.sentinelorigin.config.CustomRequestOriginParser;
 import com.example.study.sentinelorigin.constant.CommonConstant;
+import com.example.study.sentinelorigin.service.PureLocalChainService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -89,6 +90,56 @@ public class FlowRuleConfig {
         rateLimiterRule.setControlBehavior(RuleConstant.CONTROL_BEHAVIOR_RATE_LIMITER); // 匀速排队
         rateLimiterRule.setMaxQueueingTimeMs(1000); // 最大排队等待时间 1000 毫秒（1 秒），超过则拒绝
         existingRules.add(rateLimiterRule);
+
+
+        // 规则 1：直接流控（FLOW_STRATEGY_DIRECT，默认值）
+        FlowRule directRule = new FlowRule();
+        directRule.setResource(CommonConstant.DIRECT_RESOURCE);
+        directRule.setGrade(RuleConstant.FLOW_GRADE_QPS); // QPS 限流
+        directRule.setCount(10); // 当前资源 QPS 阈值 10
+        directRule.setStrategy(RuleConstant.STRATEGY_DIRECT); // 直接流控（可省略，默认值）
+        existingRules.add(directRule);
+
+        // 规则 2：关联流控（FLOW_STRATEGY_ASSOCIATE）
+        FlowRule associateRule = new FlowRule();
+        associateRule.setResource(CommonConstant.ASSOCIATE_CURRENT_RESOURCE); // 当前资源（订单创建）
+        associateRule.setGrade(RuleConstant.FLOW_GRADE_QPS);
+        associateRule.setCount(5); // 关联资源 QPS 阈值 5
+        associateRule.setStrategy(RuleConstant.STRATEGY_RELATE); // 关联流控
+        associateRule.setRefResource(CommonConstant.ASSOCIATE_REF_RESOURCE); // 关联资源（库存扣减）
+        existingRules.add(associateRule);
+
+        // 规则 3：链路流控（FLOW_STRATEGY_CHAIN）
+        FlowRule chainRule = new FlowRule();
+        chainRule.setResource(CommonConstant.CHAIN_CURRENT_RESOURCE); // 当前资源（用户查询）
+        chainRule.setGrade(RuleConstant.FLOW_GRADE_QPS);
+        chainRule.setCount(8); // 入口链路 QPS 阈值 8
+        chainRule.setStrategy(RuleConstant.STRATEGY_CHAIN); // 链路流控
+        chainRule.setRefResource(CommonConstant.CHAIN_ENTRY_RESOURCE); // 入口链路资源（/api/entry）
+        existingRules.add(chainRule);
+
+//        FlowRule chainRule = new FlowRule();
+//        chainRule.setResource(CommonConstant.CHAIN_CURRENT_RESOURCE); // 当前资源（用户查询）
+//        chainRule.setGrade(RuleConstant.FLOW_GRADE_THREAD);
+//        chainRule.setCount(8); // 入口链路 QPS 阈值 8
+//        chainRule.setStrategy(RuleConstant.STRATEGY_DIRECT); // 链路流控
+//        //chainRule.setRefResource(CommonConstant.CHAIN_ENTRY_RESOURCE); // 入口链路资源（/api/entry）
+//        existingRules.add(chainRule);
+
+        FlowRule ruleChainLoacl = new FlowRule();
+
+        // 1. 保护的目标资源：当前资源
+        ruleChainLoacl.setResource(PureLocalChainService.CHAIN_CURRENT);
+        // 2. 限流指标：QPS（本地测试用 QPS 最易触发）
+        ruleChainLoacl.setGrade(RuleConstant.FLOW_GRADE_QPS);
+        // 3. 阈值：2（极低，确保触发）
+        ruleChainLoacl.setCount(2);
+        // 4. 流控策略：链路流控
+        ruleChainLoacl.setStrategy(RuleConstant.STRATEGY_CHAIN);
+        // 5. 关联的入口资源
+        ruleChainLoacl.setRefResource(PureLocalChainService.CHAIN_ENTRY);
+
+        existingRules.add(ruleChainLoacl);
 
 
         FlowRuleManager.loadRules(existingRules);
