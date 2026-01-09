@@ -12,4 +12,9 @@ public class CommonConstant {
 
     // 资源名
     public static final String LIMIT_APP_RESOURCE = "limitAppResource";
+
+    // 资源名（区分不同流控效果）
+    public static final String DEFAULT_RESOURCE = "defaultControlBehaviorResource";
+    public static final String WARM_UP_RESOURCE = "warmUpControlBehaviorResource";
+    public static final String RATE_LIMITER_RESOURCE = "rateLimiterControlBehaviorResource";
 }

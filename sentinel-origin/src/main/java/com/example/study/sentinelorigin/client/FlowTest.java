@@ -18,6 +18,17 @@ public class FlowTest {
     private static final String TEST_URL = "http://localhost:8088/flow/limitApp";
     // 并发线程数（用于触发限流）
     private static final int CONCURRENT_THREADS = 10;
+
+
+    // 测试接口地址
+    private static final String DEFAULT_URL = "http://localhost:8088/flow/strategy/default";
+    private static final String WARM_UP_URL = "http://localhost:8088/flow/strategy/warmup";
+    private static final String RATE_LIMITER_URL = "http://localhost:8088/flow/strategy/ratelimiter";
+
+    // 并发线程数（用于触发限流）
+    private static final int STRATEGY_CONCURRENT_THREADS = 10;
+
+
     @Test
     public void  testFlowThread() throws InterruptedException {
         ExecutorService executorService = Executors.newFixedThreadPool(THREAD_NUM);
@@ -90,5 +101,57 @@ public class FlowTest {
         }
     }
 
+
+
+    @Test
+    public void testStrategy() throws InterruptedException {
+        System.out.println("========== 场景 1：测试 直接拒绝 效果（QPS 阈值 10）==========");
+        testControlBehavior(DEFAULT_URL);
+
+        // 间隔 10 秒，让 Sentinel 重置统计
+        TimeUnit.SECONDS.sleep(10);
+
+        System.out.println("\n========== 场景 2：测试 预热/冷启动 效果（最终 QPS 阈值 20，预热 5 秒）==========");
+        testControlBehavior(WARM_UP_URL);
+
+        // 间隔 10 秒
+        TimeUnit.SECONDS.sleep(10);
+
+        System.out.println("\n========== 场景 3：测试 匀速排队 效果（QPS 阈值 5，最大排队 1 秒）==========");
+        testControlBehavior(RATE_LIMITER_URL);
+    }
+
+    /**
+     * 模拟高并发请求，验证流控效果
+     * @param url 测试接口地址
+     */
+    private static void testControlBehavior(String url) {
+        // 创建固定线程池
+        ExecutorService executorService = Executors.newFixedThreadPool(STRATEGY_CONCURRENT_THREADS);
+
+        // 记录开始时间
+        long startTime = System.currentTimeMillis();
+
+        // 提交并发请求任务
+        for (int i = 0; i < STRATEGY_CONCURRENT_THREADS; i++) {
+            executorService.submit(() -> {
+                try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
+                    HttpGet httpGet = new HttpGet(url);
+                    String response = EntityUtils.toString(httpClient.execute(httpGet).getEntity(), "UTF-8");
+                    System.out.println(response);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+        }
+
+        // 关闭线程池，等待所有任务执行完成
+        executorService.shutdown();
+        while (!executorService.isTerminated()) {}
+
+        // 记录结束时间，打印耗时
+        long endTime = System.currentTimeMillis();
+        System.out.println("本次请求总耗时：" + (endTime - startTime) + " 毫秒");
+    }
 
 }

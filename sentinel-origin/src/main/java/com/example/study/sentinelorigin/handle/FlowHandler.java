@@ -26,4 +26,26 @@ public class FlowHandler {
         return format;
 
     }
+
+
+    // 降级方法：直接拒绝
+    public static String defaultBlockHandler(BlockException e) {
+        String format = String.format("【直接拒绝-降级】当前线程：%s，QPS 超过阈值 10，触发限流", Thread.currentThread().getName());
+        System.out.println(format);
+        return format;
+    }
+
+    // 降级方法：预热
+    public static String warmUpBlockHandler(BlockException e) {
+        String format = String.format("【预热-降级】当前线程：%s，预热期内 QPS 超过当前阈值，触发限流", Thread.currentThread().getName());
+        System.out.println(format);
+        return format;
+    }
+
+    // 降级方法：匀速排队
+    public static String rateLimiterBlockHandler(BlockException e) {
+        String format = String.format("【匀速排队-降级】当前线程：%s，排队时间超过 1 秒，触发限流", Thread.currentThread().getName());
+        System.out.println(format);
+        return format;
+    }
 }

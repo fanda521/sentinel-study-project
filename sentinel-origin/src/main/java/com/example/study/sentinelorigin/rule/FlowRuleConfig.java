@@ -64,6 +64,33 @@ public class FlowRuleConfig {
         existingRules.add(otherRule);
 
 
+        // 规则 1：直接拒绝（CONTROL_BEHAVIOR_DEFAULT，默认值）
+        FlowRule defaultRule = new FlowRule();
+        defaultRule.setResource(CommonConstant.DEFAULT_RESOURCE);
+        defaultRule.setGrade(RuleConstant.FLOW_GRADE_QPS); // QPS 限流
+        defaultRule.setCount(10); // QPS 阈值 10
+        defaultRule.setControlBehavior(RuleConstant.CONTROL_BEHAVIOR_DEFAULT); // 直接拒绝（可省略，默认值）
+        existingRules.add(defaultRule);
+
+        // 规则 2：预热/冷启动（CONTROL_BEHAVIOR_WARM_UP）
+        FlowRule warmUpRule = new FlowRule();
+        warmUpRule.setResource(CommonConstant.WARM_UP_RESOURCE);
+        warmUpRule.setGrade(RuleConstant.FLOW_GRADE_QPS);
+        warmUpRule.setCount(20); // 最终 QPS 阈值 20
+        warmUpRule.setControlBehavior(RuleConstant.CONTROL_BEHAVIOR_WARM_UP); // 预热效果
+        warmUpRule.setWarmUpPeriodSec(5); // 预热时间 5 秒（阈值从 10 逐步提升至 20）
+        existingRules.add(warmUpRule);
+
+        // 规则 3：匀速排队（CONTROL_BEHAVIOR_RATE_LIMITER）
+        FlowRule rateLimiterRule = new FlowRule();
+        rateLimiterRule.setResource(CommonConstant.RATE_LIMITER_RESOURCE);
+        rateLimiterRule.setGrade(RuleConstant.FLOW_GRADE_QPS);
+        rateLimiterRule.setCount(5); // QPS 阈值 5（每秒允许 5 个请求通过，间隔 200 毫秒/个）
+        rateLimiterRule.setControlBehavior(RuleConstant.CONTROL_BEHAVIOR_RATE_LIMITER); // 匀速排队
+        rateLimiterRule.setMaxQueueingTimeMs(1000); // 最大排队等待时间 1000 毫秒（1 秒），超过则拒绝
+        existingRules.add(rateLimiterRule);
+
+
         FlowRuleManager.loadRules(existingRules);
         System.out.println("追加后，当前生效规则数：" + FlowRuleManager.getRules().size());
     }

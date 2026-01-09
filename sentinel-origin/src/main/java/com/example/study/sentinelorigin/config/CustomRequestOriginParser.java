@@ -20,7 +20,7 @@ public class CustomRequestOriginParser implements RequestOriginParser {
         // 从请求头中获取应用来源（可改为从请求参数、Cookie 等提取）
         String appName = request.getHeader("X-Sentinel-App");
         // 若请求头中无该字段，默认返回 "unknown"
-        System.out.println("请求来源：" + appName);
+        //System.out.println("请求来源：" + appName);
         return appName == null ? "unknown" : appName;
     }
 }

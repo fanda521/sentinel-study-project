@@ -55,4 +55,44 @@ public class FlowController {
 
 
 
+    // 接口 1：测试 直接拒绝 效果
+    @GetMapping("/strategy/default")
+    @SentinelResource(
+            value = CommonConstant.DEFAULT_RESOURCE,
+            blockHandlerClass = FlowHandler.class,
+            blockHandler = "defaultBlockHandler"
+    )
+    public String testDefaultControlBehavior() {
+        String format = String.format("【直接拒绝-成功】当前线程：%s，请求正常执行", Thread.currentThread().getName());
+        System.out.println(format);
+        return format;
+
+    }
+
+    // 接口 2：测试 预热/冷启动 效果
+    @GetMapping("/strategy/warmup")
+    @SentinelResource(
+            value = CommonConstant.WARM_UP_RESOURCE,
+            blockHandlerClass = FlowHandler.class,
+            blockHandler = "warmUpBlockHandler"
+    )
+    public String testWarmUpControlBehavior() {
+        String format = String.format("【预热-成功】当前线程：%s，请求正常执行", Thread.currentThread().getName());
+        System.out.println(format);
+        return format;
+    }
+
+    // 接口 3：测试 匀速排队 效果
+    @GetMapping("/strategy/ratelimiter")
+    @SentinelResource(
+            value = CommonConstant.RATE_LIMITER_RESOURCE,
+            blockHandlerClass = FlowHandler.class,
+            blockHandler = "rateLimiterBlockHandler"
+    )
+    public String testRateLimiterControlBehavior() {
+        String format = String.format("【匀速排队-成功】当前线程：%s，请求正常执行", Thread.currentThread().getName());
+        System.out.println(format);
+        return format;
+
+    }
 }
