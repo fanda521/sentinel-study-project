@@ -43,6 +43,9 @@ public class CommonConstant {
     public static final String WHITE_LIST_RESOURCE = "whiteListCoreResource";
     public static final String BLACK_LIST_RESOURCE = "blackListCoreResource";
 
+    public static final String HOT_PARAM_BASIC_RESOURCE = "hotParamBasicResource";
+    public static final String HOT_PARAM_MULTI_RESOURCE = "hotParamMultiResource";
+
 
 
 
