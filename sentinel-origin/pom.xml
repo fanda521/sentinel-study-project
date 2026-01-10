@@ -78,6 +78,14 @@
             <artifactId>sentinel-web-servlet</artifactId>
             <version>1.8.6</version>
         </dependency>
+
+        <!-- Sentinel 集群限流客户端依赖 -->
+        <dependency>
+            <groupId>com.alibaba.csp</groupId>
+            <artifactId>sentinel-cluster-client-default</artifactId>
+            <version>1.8.6</version>
+        </dependency>
+
     </dependencies>
 
     <build>

@@ -13,3 +13,4 @@ sentinel:
     dashboard: 127.0.0.1:8080  # Dashboard 地址（确认 Dashboard 是 8080 端口）
     port: 8719  # 通信端口，若被占用改 8720
     client-ip: 127.0.0.1  # 单机必配
+
