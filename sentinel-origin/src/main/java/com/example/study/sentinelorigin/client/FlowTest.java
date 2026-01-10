@@ -213,7 +213,7 @@ public class FlowTest {
         // 提交并发请求任务
         for (int i = 0; i < threadNum; i++) {
             executorService.submit(() -> {
-                for (int j = 0; j < 20; j++) {
+                for (int j = 0; j < 100; j++) {
                     try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
                         HttpGet httpGet = new HttpGet(url);
                         String response = EntityUtils.toString(httpClient.execute(httpGet).getEntity(), "UTF-8");

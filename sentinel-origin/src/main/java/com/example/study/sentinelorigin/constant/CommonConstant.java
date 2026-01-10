@@ -28,4 +28,24 @@ public class CommonConstant {
     public static final String CHAIN_ENTRY_RESOURCE = "chainEntryResource"; // 链路流控-入口资源（/api/entry）
 
 
+    /**
+     * 熔断
+     */
+    // 资源名
+    public static final String RT_DEGRADE_RESOURCE = "rtDegradeResource";
+
+    public static final String RATIO_DEGRADE_RESOURCE = "ratioDegradeResource";
+
+    public static final String COUNT_DEGRADE_RESOURCE = "countDegradeResource";
+
+
+
+
+
+
+
+
+
+
+
 }
