@@ -39,6 +39,11 @@ public class CommonConstant {
     public static final String COUNT_DEGRADE_RESOURCE = "countDegradeResource";
 
 
+    // 受保护的资源名
+    public static final String WHITE_LIST_RESOURCE = "whiteListCoreResource";
+    public static final String BLACK_LIST_RESOURCE = "blackListCoreResource";
+
+
 
 
 
