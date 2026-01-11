@@ -1,0 +1,16 @@
+
+server:
+  port: 7000 # 项目端口（避免与 Sentinel 控制台默认 8080 冲突）
+spring:
+  application:
+    name: springcloudalibaba-sentinel # 应用名称（控制台显示）
+  cloud:
+    sentinel:
+      transport:
+        dashboard: localhost:8080 # Sentinel 控制台地址（匹配 1.8.6 版本）
+        port: 8719 # 应用与控制台通信端口（默认，被占用自动递增）
+      eager: true # 开启非懒加载，项目启动后直接注册到控制台（无需首次访问接口）
+      web-context-unify: true # 统一 Web 上下文，适配 Spring Boot 2.7.5 Web 环境
+
+
+
