@@ -1,16 +1,78 @@
-
+myNameSpace: a5bdafd9-cde2-44ec-a436-36f156bc5b5b
 server:
-  port: 7000 # 项目端口（避免与 Sentinel 控制台默认 8080 冲突）
+  port: 7000
 spring:
+  config:
+    import: optional:nacos:${spring.application.name}.yaml
   application:
-    name: springcloudalibaba-sentinel # 应用名称（控制台显示）
+    name: springcloudalibaba-sentinel # 应用名称，用于拼接 Nacos 配置 ID
   cloud:
+    # Nacos 基础配置（服务地址）
+    nacos:
+      discovery:
+        server-addr: localhost:8848 # Nacos 服务地址（本地部署，若为集群填写多个地址，用逗号分隔）
+        namespace: ${myNameSpace}
+      config:
+        server-addr: localhost:8848 #nacos作为配置中心地址
+        file-extension: yaml #指定yaml格式的配置
+        group: DEFAULT_GROUP #指定分组
+        namespace: ${myNameSpace} #指定spacename
     sentinel:
       transport:
-        dashboard: localhost:8080 # Sentinel 控制台地址（匹配 1.8.6 版本）
-        port: 8719 # 应用与控制台通信端口（默认，被占用自动递增）
-      eager: true # 开启非懒加载，项目启动后直接注册到控制台（无需首次访问接口）
+        dashboard: localhost:8080 # Sentinel 控制台地址
+        port: 8719 # 应用与控制台通信端口
+        app-name: ${spring.application.name}
+      eager: true # 开启非懒加载，项目启动直接注册到控制台
       web-context-unify: true # 统一 Web 上下文，适配 Spring Boot 2.7.5 Web 环境
+      # 核心：配置 Sentinel 多规则类型的 Nacos 数据源（持久化核心配置）
+      datasource:
+        # 1. 流量控制规则（flow）- 自定义数据源名称（可任意命名，如 flow、sentinel-flow）
+        flow:
+          nacos:
+            server-addr: localhost:8848 # Nacos 服务地址（与上方一致）
+            data-id: ${spring.application.name}-sentinel-flow-rules # 配置 ID（唯一标识）
+            group-id: DEFAULT_GROUP # 配置分组（默认 DEFAULT_GROUP，可自定义）
+            data-type: json # 规则数据格式（必须为 JSON，Sentinel 仅支持 JSON 解析）
+            rule-type: flow # 规则类型（flow=限流，degrade=熔断，authority=授权，system=系统）
+            namespace: ${myNameSpace} # 新增：Sentinel 数据源命名空间（与上方一致）
+        # 2. 熔断降级规则（degrade）- 可选，按需配置
+        degrade:
+          nacos:
+            server-addr: localhost:8848
+            data-id: ${spring.application.name}-sentinel-degrade-rules
+            group-id: DEFAULT_GROUP
+            data-type: json
+            rule-type: degrade
+            namespace: ${myNameSpace} # 新增：Sentinel 数据源命名空间（与上方一致）
+        # 3. 其他规则（授权、系统）- 按需添加，配置格式同上
+        authority:
+          nacos:
+            server-addr: localhost:8848
+            data-id: ${spring.application.name}-sentinel-authority-rules
+            group-id: DEFAULT_GROUP
+            data-type: json
+            rule-type: authority
+            namespace: ${myNameSpace} # 新增：Sentinel 数据源命名空间（与上方一致）
+        # 4. 系统规则（system）- 全局应用保护（CPU/负载/QPS 等）
+        system:
+          nacos:
+            server-addr: localhost:8848
+            data-id: ${spring.application.name}-sentinel-system-rules
+            group-id: DEFAULT_GROUP
+            data-type: json
+            rule-type: system
+            namespace: ${myNameSpace} # 新增：Sentinel 数据源命名空间（与上方一致）
+        # 5. 热点参数规则（param-flow）- 针对接口热点参数的精准限流
+        param-flow:
+          nacos:
+            server-addr: localhost:8848
+            data-id: ${spring.application.name}-sentinel-param-flow-rules
+            group-id: DEFAULT_GROUP
+            data-type: json
+            rule-type: param-flow
+            namespace: ${myNameSpace} # 新增：Sentinel 数据源命名空间（与上方一致）
+
+
 
 
 
