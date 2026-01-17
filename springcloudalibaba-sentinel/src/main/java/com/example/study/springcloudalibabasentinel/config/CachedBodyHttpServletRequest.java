@@ -22,6 +22,8 @@ public class CachedBodyHttpServletRequest extends HttpServletRequestWrapper {
 
     private int age;
 
+    private String name;
+
     public CachedBodyHttpServletRequest(HttpServletRequest request) throws IOException {
         super(request);
         // 读取原始请求体并缓存到字节数组中
