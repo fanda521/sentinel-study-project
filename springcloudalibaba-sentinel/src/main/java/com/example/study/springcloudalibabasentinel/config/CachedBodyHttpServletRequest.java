@@ -20,6 +20,8 @@ public class CachedBodyHttpServletRequest extends HttpServletRequestWrapper {
     // 缓存请求体的字节数组
     private byte[] cachedBody;
 
+    private String name;
+
     public CachedBodyHttpServletRequest(HttpServletRequest request) throws IOException {
         super(request);
         // 读取原始请求体并缓存到字节数组中
