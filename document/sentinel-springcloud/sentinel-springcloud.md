@@ -1056,3 +1056,437 @@ nacos authority的json格式的配置
 【blackList-成功】,X-Sentinel-App:spec-black-ip11
 ```
 
+## 4.apollo整合
+
+### 1.新版本yaml
+
+```
+由于版本兼容的问题，新版本是不可以进行直接在yaml文件的
+
+所以就需要使用java类进行配置
+```
+
+#### 1.pom
+
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>2.7.5</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.example.study</groupId>
+    <artifactId>springcloudalibaba-sentinel</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>springcloudalibaba-sentinel</name>
+
+    <properties>
+        <java.version>1.8</java.version>
+        <spring-cloud.version>2021.0.5</spring-cloud.version>
+        <spring-cloud-alibaba.version>2.2.8.RELEASE</spring-cloud-alibaba.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- 唯一正确版本！！！ -->
+            <dependency>
+                <groupId>com.alibaba.cloud</groupId>
+                <artifactId>spring-cloud-alibaba-dependencies</artifactId>
+                <version>${spring-cloud-alibaba.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- 核心：Sentinel -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-sentinel</artifactId>
+        </dependency>
+
+        <!-- 必须：Sentinel 数据源扩展 -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-alibaba-sentinel-datasource</artifactId>
+        </dependency>
+
+        <!-- Apollo 数据源 -->
+        <dependency>
+            <groupId>com.alibaba.csp</groupId>
+            <artifactId>sentinel-datasource-apollo</artifactId>
+        </dependency>
+
+        <!-- Apollo 客户端 -->
+        <dependency>
+            <groupId>com.ctrip.framework.apollo</groupId>
+            <artifactId>apollo-client</artifactId>
+            <version>1.9.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+```
+
+#### 2.yaml
+
+```yaml
+myNameSpace: a5bdafd9-cde2-44ec-a436-36f156bc5b5b
+server:
+  port: 7000
+spring:
+  application:
+#    name: springcloudalibaba-sentinel # 应用名称，用于拼接 Nacos 配置 ID
+    name: apollo-sentinel # 应用名称，用于拼接 Nacos 配置 ID
+  cloud:
+  
+  
+    sentinel:
+      transport:
+        dashboard: localhost:8080 # Sentinel 控制台地址
+        port: 8719 # 应用与控制台通信端口
+        app-name: ${spring.application.name}
+      eager: true # 开启非懒加载，项目启动直接注册到控制台
+      web-context-unify: true # 统一 Web 上下文，适配 Spring Boot 2.7.5 Web 环境
+      
+      
+app:
+  id: apollo-sentinel
+
+apollo:
+  bootstrap:
+    enabled: true
+    namespaces: application
+  autoUpdateInjectedSpringProperties: true
+  meta: http://localhost:8080      
+```
+
+#### 3.config
+
+```java
+package com.example.study.springcloudalibabasentinel.config;
+
+import com.alibaba.csp.sentinel.datasource.apollo.ApolloDataSource;
+import com.alibaba.csp.sentinel.slots.block.flow.FlowRule;
+import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.TypeReference;
+import com.ctrip.framework.apollo.Config;
+import com.ctrip.framework.apollo.ConfigService;
+import org.springframework.context.annotation.Configuration;
+
+import javax.annotation.PostConstruct;
+import java.util.List;
+
+@Configuration
+public class SentinelApolloConfig {
+
+    // ####################### 写死在这里，绝对不会为空！#######################
+    private static final String APOLLO_NAMESPACE = "application";
+    private static final String FLOW_RULE_KEY = "springcloudalibaba-sentinel-sentinel-flow-rules";
+    // ######################################################################
+
+    @PostConstruct
+    public void init() {
+        // 获取 Apollo 配置
+        Config config = ConfigService.getConfig(APOLLO_NAMESPACE);
+
+        // 创建 Apollo 数据源
+        ApolloDataSource<List<FlowRule>> flowRuleApolloDataSource = new ApolloDataSource<List<FlowRule>>(
+                APOLLO_NAMESPACE,
+                FLOW_RULE_KEY,
+                "[]", // 默认值
+                source -> JSON.parseObject(source, new TypeReference<List<FlowRule>>() {})
+        );
+
+        // 注册到 Sentinel 规则管理器
+        FlowRuleManager.register2Property(flowRuleApolloDataSource.getProperty());
+    }
+}
+```
+
+
+
+
+
+### 2.老版本yaml
+
+```
+直接配置yaml就行
+```
+
+
+
+#### 1.pom
+
+```pom
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+<!--        <version>2.7.5</version>-->
+        <version>2.2.5.RELEASE</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.example.study</groupId>
+    <artifactId>springcloudalibaba-sentinel</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>springcloudalibaba-sentinel</name>
+
+    <properties>
+        <java.version>1.8</java.version>
+<!--        <spring-cloud.version>2021.0.5</spring-cloud.version>-->
+<!--        <spring-cloud-alibaba.version>2021.0.5.0</spring-cloud-alibaba.version>-->
+        <spring-cloud.version>Hoxton.SR3</spring-cloud.version>
+        <spring-cloud-alibaba.version>2.2.1.RELEASE</spring-cloud-alibaba.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.alibaba.cloud</groupId>
+                <artifactId>spring-cloud-alibaba-dependencies</artifactId>
+                <version>${spring-cloud-alibaba.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- 核心 Sentinel -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-sentinel</artifactId>
+        </dependency>
+
+        <!-- 数据源扩展（必须！自动配置生效关键） -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-alibaba-sentinel-datasource</artifactId>
+        </dependency>
+
+        <!-- Apollo 数据源 -->
+        <dependency>
+            <groupId>com.alibaba.csp</groupId>
+            <artifactId>sentinel-datasource-apollo</artifactId>
+        </dependency>
+
+        <!-- Apollo 客户端 -->
+        <dependency>
+            <groupId>com.ctrip.framework.apollo</groupId>
+            <artifactId>apollo-client</artifactId>
+            <version>1.9.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+```
+
+#### 2.yaml
+
+```yaml
+myNameSpace: a5bdafd9-cde2-44ec-a436-36f156bc5b5b
+server:
+  port: 7000
+spring:
+  application:
+#    name: springcloudalibaba-sentinel # 应用名称，用于拼接 Nacos 配置 ID
+    name: apollo-sentinel # 应用名称，用于拼接 Nacos 配置 ID
+  cloud:
+    # Nacos 基础配置（服务地址）
+#    nacos:
+#      discovery:
+#        server-addr: localhost:8848 # Nacos 服务地址（本地部署，若为集群填写多个地址，用逗号分隔）
+#        namespace: ${myNameSpace}
+#      config:
+#        server-addr: localhost:8848 #nacos作为配置中心地址
+#        file-extension: yaml #指定yaml格式的配置
+#        group: DEFAULT_GROUP #指定分组
+#        namespace: ${myNameSpace} #指定spacename
+    sentinel:
+      transport:
+        dashboard: localhost:8080 # Sentinel 控制台地址
+        port: 8719 # 应用与控制台通信端口
+        app-name: ${spring.application.name}
+      eager: true # 开启非懒加载，项目启动直接注册到控制台
+      web-context-unify: true # 统一 Web 上下文，适配 Spring Boot 2.7.5 Web 环境
+      # 核心：配置 Sentinel 多规则类型的 Nacos 数据源（持久化核心配置）
+#      datasource:
+#        # 1. 流量控制规则（flow）- 自定义数据源名称（可任意命名，如 flow、sentinel-flow）
+#        flow:
+#          nacos:
+#            server-addr: localhost:8848 # Nacos 服务地址（与上方一致）
+#            data-id: ${spring.application.name}-sentinel-flow-rules # 配置 ID（唯一标识）
+#            group-id: DEFAULT_GROUP # 配置分组（默认 DEFAULT_GROUP，可自定义）
+#            data-type: json # 规则数据格式（必须为 JSON，Sentinel 仅支持 JSON 解析）
+#            rule-type: flow # 规则类型（flow=限流，degrade=熔断，authority=授权，system=系统）
+#            namespace: ${myNameSpace} # 新增：Sentinel 数据源命名空间（与上方一致）
+#        # 2. 熔断降级规则（degrade）- 可选，按需配置
+#        degrade:
+#          nacos:
+#            server-addr: localhost:8848
+#            data-id: ${spring.application.name}-sentinel-degrade-rules
+#            group-id: DEFAULT_GROUP
+#            data-type: json
+#            rule-type: degrade
+#            namespace: ${myNameSpace} # 新增：Sentinel 数据源命名空间（与上方一致）
+#        # 3. 其他规则（授权、系统）- 按需添加，配置格式同上
+#        authority:
+#          nacos:
+#            server-addr: localhost:8848
+#            data-id: ${spring.application.name}-sentinel-authority-rules
+#            group-id: DEFAULT_GROUP
+#            data-type: json
+#            rule-type: authority
+#            namespace: ${myNameSpace} # 新增：Sentinel 数据源命名空间（与上方一致）
+#        # 4. 系统规则（system）- 全局应用保护（CPU/负载/QPS 等）
+#        system:
+#          nacos:
+#            server-addr: localhost:8848
+#            data-id: ${spring.application.name}-sentinel-system-rules
+#            group-id: DEFAULT_GROUP
+#            data-type: json
+#            rule-type: system
+#            namespace: ${myNameSpace} # 新增：Sentinel 数据源命名空间（与上方一致）
+#        # 5. 热点参数规则（param-flow）- 针对接口热点参数的精准限流
+#        param-flow:
+#          nacos:
+#            server-addr: localhost:8848
+#            data-id: ${spring.application.name}-sentinel-param-flow-rules
+#            group-id: DEFAULT_GROUP
+#            data-type: json
+#            rule-type: param-flow
+#            namespace: ${myNameSpace} # 新增：Sentinel 数据源命名空间（与上方一致）
+#
+
+      datasource:
+        # 1. 流量控制规则（flow）- 自定义数据源名称（可任意命名，如 flow、sentinel-flow）
+        flow:
+          apollo:
+            namespace-name: application # Apollo 命名空间名称
+            flowRulesKey: springcloudalibaba-sentinel-sentinel-flow-rules # 配置 Key（唯一标识）
+            rule-type: flow # 规则类型（flow=限流，degrade=熔断，authority=授权，system=系统）
+        # 2. 熔断降级规则（degrade）- 可选，按需配置
+        degrade:
+          apollo:
+            namespace-name: application # Apollo 命名空间名称
+            flowRulesKey: springcloudalibaba-sentinel-sentinel-degrade-rules # 配置 Key
+            rule-type: degrade
+        # 3. 其他规则（授权、系统）- 按需添加，配置格式同上
+        authority:
+          apollo:
+            namespace-name: application # Apollo 命名空间名称
+            flowRulesKey: springcloudalibaba-sentinel-sentinel-authority-rules # 配置 Key
+            rule-type: authority
+        # 4. 系统规则（system）- 全局应用保护（CPU/负载/QPS 等）
+        system:
+          apollo:
+            namespace-name: application # Apollo 命名空间名称
+            flowRulesKey: springcloudalibaba-sentinel-sentinel-system-rules # 配置 Key
+            rule-type: system
+        # 5. 热点参数规则（param-flow）- 针对接口热点参数的精准限流
+        param-flow:
+          apollo:
+            namespace-name: application # Apollo 命名空间名称
+            flowRulesKey: springcloudalibaba-sentinel-sentinel-param-flow-rules # 配置 Key
+            rule-type: param-flow
+app:
+  id: apollo-sentinel
+
+apollo:
+  bootstrap:
+    enabled: true
+    namespaces: application
+  autoUpdateInjectedSpringProperties: true
+  meta: http://localhost:8080
+
+
+```
+
+
+
+### 3.apollo配置的具体规则
+
+```json
+springcloudalibaba-sentinel-sentinel-flow-rules = [\n  {\n    "resource": "/threshold/qps",\n    "limitApp": "default",\n    "grade": 1,\n    "count": 2,\n    "strategy": 0,\n    "controlBehavior": 0,\n    "clusterMode": false\n  },\n  {\n    "resource": "/threshold/thread",\n    "limitApp": "default",\n    "grade": 0,\n    "count": 3,\n    "strategy": 0,\n    "controlBehavior": 0,\n    "clusterMode": false\n  },\n  {\n    "resource": "helloResource",\n    "limitApp": "default",\n    "grade": 1,\n    "count": 2,\n    "strategy": 0,\n    "controlBehavior": 0,\n    "clusterMode": false\n  },\n  {\n    "resource": "/flowControlEffect/warmUp",\n    "limitApp": "default",\n    "grade": 1,\n    "count": 4,\n    "strategy": 0,\n    "controlBehavior": 0,\n    "clusterMode": false\n  },\n  {\n    "resource": "/flowControlEffect/queueWait",\n    "limitApp": "default",\n    "grade": 1,\n    "count": 5,\n    "strategy": 0,\n    "controlBehavior": 0,\n    "clusterMode": false\n  },\n  {\n    "resource": "/flowControlEffect/failFast",\n    "limitApp": "default",\n    "grade": 1,\n    "count": 3,\n    "strategy": 0,\n    "controlBehavior": 0,\n    "clusterMode": false\n  },\n  {\n  "resource": "/flowControlMode/direct",\n  "limitApp": "default",\n  "grade": 1,\n  "count": 2,\n  "strategy": 0,\n  "controlBehavior": 0,\n  "clusterMode": false\n  },\n  {\n  "resource": "/flowControlMode/association",\n  "limitApp": "default",\n  "grade": 1,\n  "count": 3,\n  "strategy": 1,\n  "refResource": "/flowControlMode/associationRef",\n  "controlBehavior": 0,\n  "clusterMode": false\n  },\n  {\n  "resource": "serviceLink",\n  "limitApp": "default",\n  "grade": 1,\n  "count": 2,\n  "strategy": 2,\n  "refResource": "/flowControlMode/linkEnter",\n  "controlBehavior": 0,\n  "clusterMode": false\n  },\n  {\n  "resource": "flowControlMode/linkController",\n  "limitApp": "default",\n  "grade": 1,\n  "count": 2,\n  "strategy": 2,\n  "refResource": "/flowControlMode/linkEnterController",\n  "controlBehavior": 0,\n  "clusterMode": false\n  }\n\n]
+springcloudalibaba-sentinel-sentinel-degrade-rules = []
+springcloudalibaba-sentinel-sentinel-authority-rules = [\n  {\n    "resource": "/authority/whiteList",\n    "limitApp": "inner-app,special-ip",\n    "strategy": 0\n  },\n  {\n    "resource": "/authority/blackList",\n    "limitApp": "black-app,spec-black-ip",\n    "strategy": 1\n  }\n]
+springcloudalibaba-sentinel-sentinel-system-rules = []
+springcloudalibaba-sentinel-sentinel-param-flow-rules = [\n  {\n  "resource": "/hotParam/single",\n  "grade": 1,\n  "count": 2,\n  "paramIdx": 0,\n  "durationInSec": 1,\n  "controlBehavior": 0,\n  "clusterMode": false,\n  "paramFlowItemList": []\n  } ,\n  {\n  "resource": "/hotParam/singleWithItem",\n  "grade": 1,\n  "count": 2,\n  "paramIdx": 0,\n  "durationInSec": 1,\n  "controlBehavior": 0,\n  "clusterMode": false,\n  "paramFlowItemList": [\n    {\n      "object": "999",\n      "classType": "java.lang.String",\n      "count": 200\n    }\n  ]\n  },\n  {\n  "resource": "/hotParam/mutil",\n  "grade": 1,\n  "count": 2,\n  "paramIdx": 0,\n  "durationInSec": 1,\n  "controlBehavior": 0,\n  "clusterMode": false,\n  "paramFlowItemList": [],\n  "additionalParamIdxList": []\n  },\n  {\n  "resource": "/hotParam/mutil",\n  "grade": 1,\n  "count": 1,\n  "paramIdx": 1,\n  "durationInSec": 1,\n  "controlBehavior": 0,\n  "clusterMode": false,\n  "paramFlowItemList": [],\n  "additionalParamIdxList": []\n  },\n  {\n  "resource": "/hotParam/mutilWithItem",\n  "grade": 1,\n  "count": 2,\n  "paramIdx": 0,\n  "durationInSec": 1,\n  "controlBehavior": 0,\n  "clusterMode": false,\n  "paramFlowItemList": [\n    {\n      "object": "999",\n      "classType": "java.lang.String",\n      "count": 200\n    }\n  ]\n  } ,\n  {\n  "resource": "/hotParam/mutilWithItem",\n  "grade": 1,\n  "count": 1,\n  "paramIdx": 1,\n  "durationInSec": 1,\n  "controlBehavior": 0,\n  "clusterMode": false,\n  "paramFlowItemList": [\n    {\n      "object": "jeffrey",\n      "classType": "java.lang.String",\n      "count": 200\n    }\n  ]\n  } \n\n]
+
+```
+
